@@ -14,17 +14,16 @@ fn main() {
 
     let manager =
         RedisConnectionManager::new("redis://default:secret_passwd@localhost:6379/0").unwrap();
-    let pool = r2d2::Pool::builder()
+    let connection_pool = r2d2::Pool::builder()
         .max_size(num_of_threads as u32)
         .build(manager)
         .unwrap();
 
     let mut handles = Vec::new();
     for _i in 0..num_of_threads {
-        let pool = pool.clone();
-
+        let connection_pool_clone = connection_pool.clone();
         let handle = thread::spawn(move || {
-            let mut actual_conn = pool.get().unwrap();
+            let mut actual_conn = connection_pool_clone.get().unwrap();
             let mut redis_conn = RedisServicePooledCon::new(&mut actual_conn);
             loop {
                 match redis_conn.dequeue_job() {

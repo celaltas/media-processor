@@ -4,3 +4,4 @@ pub mod processor;
 pub mod redis_service;
 pub mod redis_service_pool;
 pub mod connection_manager;
+pub mod threadpool;
