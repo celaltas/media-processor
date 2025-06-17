@@ -1,7 +1,5 @@
 use redis::{Commands, Connection, RedisError};
-
 use crate::job::JobMetadata;
-
 pub struct RedisService {
     connection: Connection,
 }

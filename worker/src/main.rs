@@ -1,40 +1,64 @@
-use std::{path::Path, time::Duration};
-use tokio::time::sleep;
-use worker::{processor::ImageProcessor, redis_service::RedisService};
+use r2d2_redis::{RedisConnectionManager, r2d2};
+use std::{
+    path::Path,
+    thread::{self, sleep},
+    time::Duration,
+};
+use worker::{processor::ImageProcessor, redis_service_pool::RedisServicePooledCon};
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let image_processor = ImageProcessor::new();
-    let mut redis_service = RedisService::new();
+    let num_of_threads = thread::available_parallelism()
+        .map(|r| r.get())
+        .unwrap_or(1);
 
-    println!("🚀 Image process worker started...");
+    let manager =
+        RedisConnectionManager::new("redis://default:secret_passwd@localhost:6379/0").unwrap();
+    let pool = r2d2::Pool::builder()
+        .max_size(num_of_threads as u32)
+        .build(manager)
+        .unwrap();
 
-    loop {
-        match redis_service.dequeue_job() {
-            Ok(job_id) => {
-                println!("📦 Processing job: {}", job_id);
-                if let Err(err) = handle_job(&image_processor, &mut redis_service, &job_id) {
-                    eprintln!("❌ Error processing job {}: {}", job_id, err);
+    let mut handles = Vec::new();
+    for _i in 0..num_of_threads {
+        let pool = pool.clone();
 
-                    if let Err(e) = redis_service.enqueue_job(&job_id) {
-                        eprintln!("❌ Failed to re-enqueue job {}: {}", job_id, e);
-                    } else {
-                        println!("🔁 Job {} re-enqueued due to failure", job_id);
+        let handle = thread::spawn(move || {
+            let mut actual_conn = pool.get().unwrap();
+            let mut redis_conn = RedisServicePooledCon::new(&mut actual_conn);
+            loop {
+                match redis_conn.dequeue_job() {
+                    Ok(job_id) => {
+                        println!("📦 Processing job: {}", job_id);
+                        if let Err(err) = handle_job(&image_processor, &mut redis_conn, &job_id) {
+                            eprintln!("❌ Error processing job {}: {}", job_id, err);
+
+                            if let Err(e) = redis_conn.enqueue_job(&job_id) {
+                                eprintln!("❌ Failed to re-enqueue job {}: {}", job_id, e);
+                            } else {
+                                println!("🔁 Job {} re-enqueued due to failure", job_id);
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        eprintln!("⚠️ Failed to fetch job: {}", err);
+                        println!("⏳ Sleeping for 5 seconds...");
+                        sleep(Duration::from_secs(5));
                     }
                 }
             }
-            Err(err) => {
-                eprintln!("⚠️ Failed to fetch job: {}", err);
-                println!("⏳ Sleeping for 5 seconds...");
-                sleep(Duration::from_secs(5)).await;
-            }
-        }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
     }
 }
 
 fn handle_job(
     processor: &ImageProcessor,
-    redis_service: &mut RedisService,
+    redis_service: &mut RedisServicePooledCon,
     job_id: &str,
 ) -> Result<(), String> {
     let metadata = redis_service
