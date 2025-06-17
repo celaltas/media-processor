@@ -39,7 +39,7 @@ mod tests {
         let mut redis = RedisService::new();
         // let job_id = redis.dequeue_job();
         let job_id = "cd5429a1-0005-4a84-bb88-78dd06bd9165";
-        redis.enqueue_job(job_id);
+        let _ = redis.enqueue_job(job_id);
         // println!("job_id: {:#?}", job_id);
         // let job_id = job_id.unwrap();
         // let data = redis.get_job_metadata(job_id);

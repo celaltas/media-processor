@@ -1,10 +1,6 @@
-use crate::{processor::ImageProcessor, redis_service::RedisService};
 use std::{path::Path, time::Duration};
 use tokio::time::sleep;
-
-mod job;
-mod processor;
-mod redis_service;
+use worker::{processor::ImageProcessor, redis_service::RedisService};
 
 #[tokio::main]
 async fn main() {

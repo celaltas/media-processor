@@ -14,6 +14,7 @@ pub enum ImageProcessorError {
     ImageSaveError(PathBuf),
 }
 
+#[derive(Clone, Copy)]
 pub struct ImageProcessor;
 
 impl ImageProcessor {
