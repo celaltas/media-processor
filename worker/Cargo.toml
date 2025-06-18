@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+crossbeam-channel = "0.5.15"
+ctrlc = { version = "3.4.7", features = ["termination"] }
 deadpool = {version = "0.12.2", features = ["rt_tokio_1"]}
 futures = "0.3.31"
 image = "0.25.6"

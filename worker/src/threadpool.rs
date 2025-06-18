@@ -1,10 +1,9 @@
 use std::{
-    sync::{
-        Arc, Mutex,
-        mpsc::{self, Receiver, Sender},
-    },
+    sync::{Arc, Mutex},
     thread,
 };
+
+use crossbeam_channel::{Receiver, Sender};
 
 pub struct Worker {
     id: usize,
@@ -43,7 +42,7 @@ impl ThreadPool {
     pub fn new(size: usize) -> ThreadPool {
         assert!(size > 0);
         let mut workers = Vec::with_capacity(size);
-        let (tx, rx) = mpsc::channel::<Task>();
+        let (tx, rx) = crossbeam_channel::bounded::<Task>(100);
         let receiver = Arc::new(Mutex::new(rx));
         for id in 0..size {
             let receiver_clone = Arc::clone(&receiver);
